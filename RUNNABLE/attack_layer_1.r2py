@@ -1,0 +1,66 @@
+"""
+This security layer inadequately handles A/B storage for files in RepyV2.
+
+
+
+Note:
+    This security layer uses encasementlib.r2py, restrictions.default, repy.py and Python
+    Also you need to give it an application to run.
+    python repy.py restrictions.default encasementlib.r2py [security_layer].r2py [attack_program].r2py 
+    
+    """ 
+TYPE="type"
+ARGS="args"
+RETURN="return"
+EXCP="exceptions"
+TARGET="target"
+FUNC="func"
+OBJC="objc"
+DEBUG=True
+
+class AttackABFile():
+  def attackLogger(text):
+    if DEBUG == True:
+      log(text)
+  
+  attackLogger(listfiles())
+  
+  if "testfile.txt.a" in listfiles():
+    attackLogger("Removing testfile.txt.a")
+    removefile("testfile.txt.a")
+    
+  if "testfile.txt.b" in listfiles():
+    attackLogger("Removing testfile.txt.b")
+    removefile("testfile.txt.b")
+    
+  myfile=ABopenfile("testfile.txt",True)  #Create an AB file
+  attackLogger("reading from file: "+myfile.readat(None,0))
+  attackLogger("reading from file: "+myfile.readat(None,1))
+  attackLogger("reading from file: "+myfile.readat(None,-1))
+  attackLogger("reading from file: "+myfile.readat(5,2))
+  # I should get 'SE' when reading an empty file...
+  assert('SE' == myfile.readat(None,0))
+  assert('E' == myfile.readat(None,1))
+  assert('SE' == myfile.readat(None,-1))
+  assert('SE' == myfile.readat(0,-1))
+  #assert('E' == myfile.readat(5,0), "Failure")
+  
+  
+  # put some valid data in the file.
+  myfile.writeat("Stest12345E",0)
+  attackLogger(myfile.readat(None,0))
+  
+  # attempt to put invalid data in the file.
+  myfile.writeat("test12345",0)
+  myfile.writeat("attack",20)
+  myfile.writeat("foobar",-1)
+  
+  attackLogger(myfile.readat(None,0)) 
+  
+  # I should still get 'SE' because the file wasn't closed.
+  assert('SE' == myfile.readat(None,0))
+  
+  #Close the file
+  myfile.close()
+
+  attackLogger(listfiles())
