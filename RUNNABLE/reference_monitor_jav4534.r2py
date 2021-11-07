@@ -16,8 +16,12 @@ EXCP="exceptions"
 TARGET="target"
 FUNC="func"
 OBJC="objc"
-DEBUG=True
-LOCK=False
+DEBUG=False
+CREATE_LOCK=False
+WRITE_LOCK=False
+START_TOKEN="S"
+END_TOKEN="E"
+WHITESPACE_TOKEN=" "
 
 class ABFile():
   def __init__(self,filename,create):
@@ -31,12 +35,19 @@ class ABFile():
     self.Bfn = filename+'.b'
     logger(self.Bfn)
     
+    self.AfileLength = 0
+    self.BfileLength = 0
+    
     # make the files and add 'SE' to the readat file...
+    self.Afile = openfile(self.Afn,create)
+    self.Bfile = openfile(self.Bfn,create)
+    
     if create:
-      self.Afile = openfile(self.Afn,create)
-      self.Bfile = openfile(self.Bfn,create)
       self.Afile.writeat('SE',0)
-      LOCK=True  
+      self.Bfile.writeat('SE',0)
+      #self.AfileLength = len(self.Afile)
+      #self.BfileLength = len(self.Bfile)
+      CREATE_LOCK=True
 
   def writeat(self,data,offset):
     logger("===== writeat method =====")
@@ -45,10 +56,17 @@ class ABFile():
     logger("Write offset = "+str(offset))
     logger(str(data[0]))
     logger(str(data[len(data)-1]))
-    if data[0] != 'S' and data[len(data)-1] != 'E':
-      logger("Write not permitted")
-    else: 
-      self.Bfile.writeat(data,offset)
+    
+    if data[0] == WHITESPACE_TOKEN:
+      logger("Bailing: Write not permitted")
+    if data[0] != START_TOKEN and data[len(data)-1] != END_TOKEN:
+      logger("Bailing: Write not permitted")
+    else:
+      if offset > len(data): 
+        logger("Bailing: Write not permitted")
+      else: 
+        logger("Write permitted!!!")
+        self.Bfile.writeat(data,offset)
   
   def readat(self,bytes,offset):
     logger("===== readat method =====")
@@ -64,16 +82,26 @@ class ABFile():
 
   def close(self):
     logger("===== close method =====")
-    fileAcontent = self.Afile.readat(None,0)
-    logger("fileAcontent: "+fileAcontent)
-    if fileAcontent[0] != 'S' and fileAcontent[len(fileAcontent)-1] != 'E':
+    AfileContent = self.Afile.readat(None,0)
+    logger("AfileContent: "+AfileContent)
+    if AfileContent[0] != START_TOKEN and AfileContent[len(AfileContent)-1] != END_TOKEN:
       logger(self.Afile.readat(0,0))
-      self.Afile.writeat('SE',0)
+      self.Afile.writeat(START_TOKEN+END_TOKEN,0)
       logger(self.Afile.readat(0,0))
-       
+    else:
+      BfileContent = self.Bfile.readat(None,0)
+      if BfileContent[0] == WHITESPACE_TOKEN:
+        logger("Bailing: Write not permitted")
+      elif len(BfileContent) < len(START_TOKEN+END_TOKEN): 
+        logger("Bailing: Write not permitted")
+      else:
+        logger("BfileContent: "+BfileContent)
+        logger("Writing BfileContent to fileA")
+        self.Afile.writeat(BfileContent,0)
+    
     self.Afile.close()
     self.Bfile.close()
-    LOCK=False
+    CREATE_LOCK=False
 
 
 

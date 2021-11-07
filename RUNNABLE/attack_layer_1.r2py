@@ -16,7 +16,7 @@ EXCP="exceptions"
 TARGET="target"
 FUNC="func"
 OBJC="objc"
-DEBUG=True
+DEBUG=False
 
 class AttackABFile():
   def attackLogger(text):
