@@ -17,16 +17,17 @@ TARGET="target"
 FUNC="func"
 OBJC="objc"
 DEBUG=False
-CREATE_LOCK=False
-WRITE_LOCK=False
 START_TOKEN="S"
 END_TOKEN="E"
 WHITESPACE_TOKEN=" "
+LOCK = createlock()
 
 class ABFile():
   def __init__(self,filename,create):
     # globals
+    LOCK.acquire(True)
     mycontext['debug'] = False
+    mycontext['writecount'] = 0
     
     logger("initializing instance of class ABFile")
     # local (per object) reference to the underlying file
@@ -45,28 +46,36 @@ class ABFile():
     if create:
       self.Afile.writeat('SE',0)
       self.Bfile.writeat('SE',0)
-      #self.AfileLength = len(self.Afile)
-      #self.BfileLength = len(self.Bfile)
-      CREATE_LOCK=True
+    self.AfileLength = len(self.Afile.readat(None,0))
+    logger("==>A File Content At Open::"+self.Afile.readat(None,0))
+    logger("==>AfileLength::"+str(self.AfileLength))
 
   def writeat(self,data,offset):
     logger("===== writeat method =====")
+
+    mycontext['writecount'] = mycontext['writecount'] + 1
+    BfileContent = self.Bfile.readat(None,0)
+    BfileLength = len(BfileContent)
     # Write the requested data to the B file using the sandbox's writeat call
     logger("data="+data+" | length = "+str(len(data))+" characters")
+    logger("B File Content = "+str(BfileContent))
+    logger("File length = "+str(BfileLength))
     logger("Write offset = "+str(offset))
     logger(str(data[0]))
     logger(str(data[len(data)-1]))
     
     if data[0] == WHITESPACE_TOKEN:
-      logger("Bailing: Write not permitted")
-    if data[0] != START_TOKEN and data[len(data)-1] != END_TOKEN:
-      logger("Bailing: Write not permitted")
-    else:
-      if offset > len(data): 
-        logger("Bailing: Write not permitted")
-      else: 
-        logger("Write permitted!!!")
-        self.Bfile.writeat(data,offset)
+      logger("Bailing: Write not permitted due to white space")
+    #if data[0] != START_TOKEN and data[len(data)-1] != END_TOKEN:
+    #  logger("Bailing: Write not permitted due to improper conditions")
+    #else:
+    elif offset >= BfileLength: 
+      logger("Bailing: Write not permitted due to offset being greater than or equal to the length of the file")
+    elif offset < 0: 
+      logger("Bailing: Write not permitted due to offset being less than zero")
+    else: 
+      logger("Write permitted!!!")
+      self.Bfile.writeat(data,offset)
   
   def readat(self,bytes,offset):
     logger("===== readat method =====")
@@ -94,16 +103,20 @@ class ABFile():
         logger("Bailing: Write not permitted")
       elif len(BfileContent) < len(START_TOKEN+END_TOKEN): 
         logger("Bailing: Write not permitted")
+      elif BfileContent[0] != START_TOKEN or BfileContent[len(BfileContent)-1] != END_TOKEN:
+        logger("Bailing: Write not permitted, not meeting conditions of START_TOKEN and END_TOKEN")
       else:
-        logger("BfileContent: "+BfileContent)
+        logger("About to write ====================>BfileContent: "+BfileContent)
         logger("Writing BfileContent to fileA")
+        logger("==>fileLength prior to write::"+str(self.AfileLength))
         self.Afile.writeat(BfileContent,0)
-    
+        self.AfileLength = len(self.Afile.readat(None,0))
+        logger("==>fileLength after write::"+str(self.AfileLength))
+    logger("close()::Afile::"+self.Afile.readat(None,0))
+    logger("close()::Bfile::"+self.Bfile.readat(None,0))
     self.Afile.close()
     self.Bfile.close()
-    CREATE_LOCK=False
-
-
+    LOCK.release()
 
 def ABopenfile(filename, create):
   logger("At ABopenfile")
@@ -112,7 +125,6 @@ def ABopenfile(filename, create):
 def logger(text):
   if DEBUG == True:
     log(text)
-
 
 # The code here sets up type checking and variable hiding for you.  You
 # should not need to change anything below here.
