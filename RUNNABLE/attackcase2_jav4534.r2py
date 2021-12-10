@@ -1,0 +1,60 @@
+"""
+This security layer inadequately handles A/B storage for files in RepyV2.
+
+
+
+Note:
+    This security layer uses encasementlib.r2py, restrictions.default, repy.py and Python
+    Also you need to give it an application to run.
+    python repy.py restrictions.default encasementlib.r2py [security_layer].r2py [attack_program].r2py 
+    
+    """ 
+TYPE="type"
+ARGS="args"
+RETURN="return"
+EXCP="exceptions"
+TARGET="target"
+FUNC="func"
+OBJC="objc"
+DEBUG=False
+
+class AttackABFile():
+
+  # WRITE OPERATION
+  # New File Operation
+
+  # Clean up of existing file
+  if "testfile.txt.a" in listfiles():
+    removefile("testfile.txt.a")
+  if "testfile.txt.b" in listfiles():
+    removefile("testfile.txt.b")
+
+  # Open File Function Call
+  myfile=ABopenfile("testfile.txt",True)  #Create an AB file
+
+  # Write valid data to the file
+  myfile.writeat("StestEsdfs",-1)
+
+  #Close the file
+  myfile.close()
+
+  # READ OPERATION
+  # Read the file to check the contents
+  try:
+    # Reopen file again to read
+    myfile=ABopenfile("testfilez.txt",True)
+    #assert('StestE' == myfile.readat(0,0))
+    #Close the file
+    myfile.close()
+  except IOError:
+    #Close the file
+    myfile.close()
+    log("An I/O error occurred when trying to read the file.")
+  except EOFError:
+    #Close the file
+    myfile.close()
+    log("Why did you do an EOF on me?")
+  except:
+    #Close the file
+    myfile.close()
+    log("Valid Data write to a file is unsuccessful!")
